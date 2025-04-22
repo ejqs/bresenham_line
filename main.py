@@ -1,11 +1,3 @@
-# SimpleLine Program
-# Application that uses the bresenham line algorithm.
-
-# Coursework for COMPSCI 46(2018) - GRAPHICS AND VISUAL COMPUTING
-
-# Ayangco
-# Jalandoni
-# Sabillano
 
 # Code Snippet Taken from PyGame Website
 # Taken from husano896's PR thread (slightly modified)
