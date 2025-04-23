@@ -2,8 +2,7 @@
 # Code Snippet Taken from PyGame Website
 # Taken from husano896's PR thread (slightly modified)
 import pygame
-from pygame.locals import QUIT, MOUSEWHEEL, MOUSEBUTTONDOWN, MOUSEMOTION
-
+from pygame.locals import * 
 pygame.init()
 screen = pygame.display.set_mode((640, 480))
 clock = pygame.time.Clock()
