@@ -6,6 +6,8 @@ from pygame.locals import *
 
 # Import files
 from draw import Grid
+from bresenham_line import *
+from colors import *
 
 pygame.init()
 screen = pygame.display.set_mode((640, 480))
@@ -26,6 +28,10 @@ def main():
          elif event.type == MOUSEBUTTONDOWN:
             # print(f"Mouse clicked at: {event.pos}")  # Print the position of the mouse click
             grid.select_dot_from_mouse_coordinates(event.pos[0], event.pos[1])
+            grid.edit_array_from_list(bresenham_line(0,0))
+            grid.draw_cells(COLOR_WHITE)
+            grid.draw_grid()
+            pygame.display.flip()
          elif event.type == MOUSEMOTION:
             # TODO: Add Hover Functionality here
             pass

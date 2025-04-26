@@ -14,4 +14,8 @@ def bresenham_line(point1 , point2):
 
     #
     
-    return points # [(x, y), (x, y), ...]
+    points.append((0, 0))  # Example point
+    points.append((1, 1))  # Example point
+    points.append((2, 2))  # Example point
+    points.append((3, 3))  # Example point
+    return points  # [(x, y), (x, y), ...]
