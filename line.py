@@ -13,5 +13,5 @@ class Line:
     def __init__(self, point1: Point, point2: Point):
         self.x1 = point1.x
         self.y1 = point1.y
-        self.x2 = point1.x
+        self.x2 = point2.x
         self.y2 = point2.y
