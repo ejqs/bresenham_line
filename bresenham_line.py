@@ -1,4 +1,7 @@
 # Processes Points and Generates
+class BresenhamPoints:
+    def __init__(self):
+        pass
 
 def bresenham_line(point1 , point2):
     """
