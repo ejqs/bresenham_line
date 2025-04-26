@@ -27,6 +27,7 @@ def main():
             # print(f"Mouse clicked at: {event.pos}")  # Print the position of the mouse click
             grid.select_dot_from_mouse_coordinates(event.pos[0], event.pos[1])
          elif event.type == MOUSEMOTION:
+            # TODO: Add Hover Functionality here
             pass
             # print(f"Mouse moved to: {event.pos}")  # Print the current mouse position
       clock.tick(60)
