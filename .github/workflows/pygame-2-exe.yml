@@ -1,0 +1,75 @@
+name: Build Multi-Platform Executables
+run-name: Building for Windows, macOS, and Linux
+on: [push]
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          clean: true
+          lfs: false
+          
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          
+      - name: Create spec file
+        run: |
+          echo "# -*- mode: python ; coding: utf-8 -*-
+          
+          block_cipher = None
+          
+          a = Analysis(['main.py'],
+                       pathex=['.'],
+                       binaries=[],
+                       datas=[],
+                       hiddenimports=[],
+                       hookspath=[],
+                       hooksconfig={},
+                       runtime_hooks=[],
+                       excludes=[],
+                       win_no_prefer_redirects=False,
+                       win_private_assemblies=False,
+                       cipher=block_cipher,
+                       noarchive=False)
+                       
+          pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+          
+          exe = EXE(pyz,
+                    a.scripts,
+                    a.binaries,
+                    a.zipfiles,
+                    a.datas,
+                    [],
+                    name='Bresenham Line',
+                    debug=False,
+                    bootloader_ignore_signals=False,
+                    strip=False,
+                    upx=True,
+                    upx_exclude=[],
+                    runtime_tmpdir=None,
+                    console=False,
+                    disable_windowed_traceback=False,
+                    argv_emulation=False,
+                    target_arch=None,
+                    codesign_identity=None,
+                    entitlements_file=None)
+          " > build.spec
+          
+      - name: Create Executable
+        uses: sayyid5416/pyinstaller@v1.8.0
+        with:
+          python_ver: '3.10'
+          pyinstaller_ver: '==5.13.2'
+          spec: 'build.spec'
+          requirements: 'requirements.txt'
+          upload_exe_with_name: 'Bresenham Line - ${{ matrix.os }}'
+          options: --onefile, --name "Bresenham Line", --windowed
+          spec_options: ''
+          compression_level: 6
