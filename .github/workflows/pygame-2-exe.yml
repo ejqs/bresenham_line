@@ -70,7 +70,7 @@ jobs:
         run: pyinstaller build.spec
       
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: BresenhamLine-${{ runner.os }}
           path: dist/BresenhamLine*
