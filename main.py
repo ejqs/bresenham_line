@@ -2,6 +2,7 @@ import pygame
 from pygame.locals import * 
 import json
 import os
+import math
 
 # Import files
 from draw import Grid
@@ -93,6 +94,9 @@ STATE_SAVE = "save"
 MODE_PEN = "pen"    # Drawing lines
 MODE_ERASE = "erase"  # Erasing lines
 
+# UI Constants
+TOOLBAR_HEIGHT = 50  # Height of the toolbar
+
 current_state = STATE_START_SCREEN
 current_mode = MODE_PEN  # Default mode is pen
 program_data = {
@@ -104,6 +108,14 @@ program_data = {
 # Font setup
 font = pygame.font.SysFont("Arial", 18)
 title_font = pygame.font.SysFont("Arial", 24, bold=True)
+
+# Settings input fields
+SETTING_NONE = 0
+SETTING_CELL_SIZE = 1
+SETTING_GRID_WIDTH = 2
+SETTING_GRID_HEIGHT = 3
+active_setting = SETTING_NONE
+input_text = ""
 
 # Initialize objects
 bresenham_points = BresenhamPoints()
@@ -128,6 +140,8 @@ def render_text(text, font, color, surface, x, y):
 
 def draw_start_screen():
     """Draw the configuration screen"""
+    global active_setting, input_text
+    
     screen_manager.fill(COLOR_BLACK)
     
     # Title
@@ -136,20 +150,46 @@ def draw_start_screen():
     # New Drawing Section
     render_text("New Drawing", font, COLOR_WHITE, screen, 200, 120)
     
-    # Settings boxes
-    pygame.draw.rect(screen, COLOR_WHITE, pygame.Rect(350, 150, 50, 20), 1)
+    # Settings boxes with highlighting for active field
+    cell_size_rect = pygame.Rect(350, 150, 50, 20)
+    cell_border_width = 2 if active_setting == SETTING_CELL_SIZE else 1
+    cell_border_color = COLOR_GREEN if active_setting == SETTING_CELL_SIZE else COLOR_WHITE
+    pygame.draw.rect(screen, cell_border_color, cell_size_rect, cell_border_width)
     screen_manager.mark_dirty(pygame.Rect(350, 150, 50, 20))
-    render_text(str(program_data["grid_cell_size"]), font, COLOR_WHITE, screen, 360, 150)
-    render_text("Cell Size", font, COLOR_WHITE, screen, 200, 150)
     
-    pygame.draw.rect(screen, COLOR_WHITE, pygame.Rect(350, 180, 50, 20), 1)
+    # Show input text if being edited, otherwise show current value
+    if active_setting == SETTING_CELL_SIZE:
+        text_to_show = input_text + "|" if len(input_text) < 3 else input_text  # Add cursor
+    else:
+        text_to_show = str(program_data["grid_cell_size"])
+    render_text(text_to_show, font, COLOR_WHITE, screen, 360, 150)
+    render_text("Cell Size", font, COLOR_WHITE, screen, 200, 150)
+    render_text("(Click to edit)", font, COLOR_WHITE, screen, 200, 240)
+    
+    grid_width_rect = pygame.Rect(350, 180, 50, 20)
+    width_border_width = 2 if active_setting == SETTING_GRID_WIDTH else 1
+    width_border_color = COLOR_GREEN if active_setting == SETTING_GRID_WIDTH else COLOR_WHITE
+    pygame.draw.rect(screen, width_border_color, grid_width_rect, width_border_width)
     screen_manager.mark_dirty(pygame.Rect(350, 180, 50, 20))
-    render_text(str(program_data["grid_width"]), font, COLOR_WHITE, screen, 360, 180)
+    
+    if active_setting == SETTING_GRID_WIDTH:
+        text_to_show = input_text + "|" if len(input_text) < 3 else input_text
+    else:
+        text_to_show = str(program_data["grid_width"])
+    render_text(text_to_show, font, COLOR_WHITE, screen, 360, 180)
     render_text("Grid Width", font, COLOR_WHITE, screen, 200, 180)
     
-    pygame.draw.rect(screen, COLOR_WHITE, pygame.Rect(350, 210, 50, 20), 1)
+    grid_height_rect = pygame.Rect(350, 210, 50, 20)
+    height_border_width = 2 if active_setting == SETTING_GRID_HEIGHT else 1
+    height_border_color = COLOR_GREEN if active_setting == SETTING_GRID_HEIGHT else COLOR_WHITE
+    pygame.draw.rect(screen, height_border_color, grid_height_rect, height_border_width)
     screen_manager.mark_dirty(pygame.Rect(350, 210, 50, 20))
-    render_text(str(program_data["grid_height"]), font, COLOR_WHITE, screen, 360, 210)
+    
+    if active_setting == SETTING_GRID_HEIGHT:
+        text_to_show = input_text + "|" if len(input_text) < 3 else input_text
+    else:
+        text_to_show = str(program_data["grid_height"])
+    render_text(text_to_show, font, COLOR_WHITE, screen, 360, 210)
     render_text("Grid Height", font, COLOR_WHITE, screen, 200, 210)
     
     # Default values
@@ -168,13 +208,13 @@ def draw_start_screen():
     screen_manager.draw_rect(COLOR_BLUE, load_button)
     render_text("LOAD DRAWING", font, COLOR_BLACK, screen, 260, 320)
     
-    return start_button, load_button
+    return start_button, load_button, cell_size_rect, grid_width_rect, grid_height_rect
 
 def draw_toolbar():
     """Draw the toolbar with color selector and options"""
     global current_mode
     
-    toolbar_rect = pygame.Rect(0, 0, 640, 40)
+    toolbar_rect = pygame.Rect(0, 0, 640, TOOLBAR_HEIGHT)
     screen_manager.draw_rect((50, 50, 50), toolbar_rect)
     
     # Color picker
@@ -441,18 +481,20 @@ def init_grid():
             grid.cells[x].append(0)
     
     # Replace the original draw_grid method with a custom one that respects our dimensions
+    # and positions the grid below the toolbar
     def custom_draw_grid():
         # Fill the background
         screen.fill(COLOR_BLACK)
         
-        # Draw the grid cells
+        # Draw the grid cells - offset by TOOLBAR_HEIGHT
         for x in range(0, program_data["grid_width"]):
             for y in range(0, program_data["grid_height"]):
                 pygame.draw.rect(screen, COLOR_WHITE, 
-                    pygame.Rect(x*grid.cell_size, y*grid.cell_size, grid.cell_size, grid.cell_size), 1)
+                    pygame.Rect(x*grid.cell_size, y*grid.cell_size + TOOLBAR_HEIGHT, 
+                              grid.cell_size, grid.cell_size), 1)
         
         # Mark the entire grid area as dirty
-        grid_area = pygame.Rect(0, 0, 
+        grid_area = pygame.Rect(0, TOOLBAR_HEIGHT, 
                            program_data["grid_width"] * grid.cell_size,
                            program_data["grid_height"] * grid.cell_size)
         screen_manager.mark_dirty(grid_area)
@@ -474,8 +516,8 @@ def clean_preview_line():
     for point in last_preview_line:
         x, y = point
         if 0 <= x < program_data["grid_width"] and 0 <= y < program_data["grid_height"]:
-            # Redraw cell with background color
-            cell_rect = pygame.Rect(x * grid.cell_size, y * grid.cell_size, 
+            # Redraw cell with background color - with toolbar offset
+            cell_rect = pygame.Rect(x * grid.cell_size, y * grid.cell_size + TOOLBAR_HEIGHT, 
                                   grid.cell_size, grid.cell_size)
             screen_manager.draw_rect(COLOR_BLACK, cell_rect)
             
@@ -492,19 +534,19 @@ def clean_preview_line():
     for point in last_preview_line:
         x, y = point
         if 0 <= x < program_data["grid_width"] and 0 <= y < program_data["grid_height"]:
-            # Redraw grid lines for this cell
+            # Redraw grid lines for this cell - with toolbar offset
             screen_manager.draw_line(COLOR_GREY, 
-                                   (x * grid.cell_size, y * grid.cell_size), 
-                                   ((x+1) * grid.cell_size, y * grid.cell_size))
+                                   (x * grid.cell_size, y * grid.cell_size + TOOLBAR_HEIGHT), 
+                                   ((x+1) * grid.cell_size, y * grid.cell_size + TOOLBAR_HEIGHT))
             screen_manager.draw_line(COLOR_GREY, 
-                                   (x * grid.cell_size, y * grid.cell_size), 
-                                   (x * grid.cell_size, (y+1) * grid.cell_size))
+                                   (x * grid.cell_size, y * grid.cell_size + TOOLBAR_HEIGHT), 
+                                   (x * grid.cell_size, (y+1) * grid.cell_size + TOOLBAR_HEIGHT))
             screen_manager.draw_line(COLOR_GREY, 
-                                   ((x+1) * grid.cell_size, y * grid.cell_size), 
-                                   ((x+1) * grid.cell_size, (y+1) * grid.cell_size))
+                                   ((x+1) * grid.cell_size, y * grid.cell_size + TOOLBAR_HEIGHT), 
+                                   ((x+1) * grid.cell_size, (y+1) * grid.cell_size + TOOLBAR_HEIGHT))
             screen_manager.draw_line(COLOR_GREY, 
-                                   (x * grid.cell_size, (y+1) * grid.cell_size), 
-                                   ((x+1) * grid.cell_size, (y+1) * grid.cell_size))
+                                   (x * grid.cell_size, (y+1) * grid.cell_size + TOOLBAR_HEIGHT), 
+                                   ((x+1) * grid.cell_size, (y+1) * grid.cell_size + TOOLBAR_HEIGHT))
     
     last_preview_line = []
 
@@ -520,7 +562,7 @@ def draw_preview_line(start_point, end_point):
     for point in preview_line:
         x, y = point
         if 0 <= x < program_data["grid_width"] and 0 <= y < program_data["grid_height"]:
-            cell_rect = pygame.Rect(x * grid.cell_size, y * grid.cell_size,
+            cell_rect = pygame.Rect(x * grid.cell_size, y * grid.cell_size + TOOLBAR_HEIGHT,
                                   grid.cell_size, grid.cell_size)
             screen_manager.draw_rect((100, 100, 100), cell_rect)
     
@@ -528,18 +570,72 @@ def draw_preview_line(start_point, end_point):
     last_preview_line = preview_line
 
 def find_line_at_point(mouse_pos):
-    """Find if a line exists at the given mouse position"""
-    grid_x, grid_y = grid.convert_world_coordinates_to_grid_coordinates(mouse_pos[0], mouse_pos[1])
-    point = (grid_x, grid_y)
+        """Find if a line exists at the given mouse position"""
+        # Adjust mouse position to account for toolbar offset
+        adjusted_y = mouse_pos[1] - TOOLBAR_HEIGHT
+        
+        # Only convert if the mouse is in the grid area
+        if adjusted_y >= 0:
+            grid_x = math.floor(mouse_pos[0]/grid.cell_size)
+            grid_y = math.floor(adjusted_y/grid.cell_size)
+            point = (grid_x, grid_y)
+            
+            # Check if point is within grid bounds
+            if 0 <= grid_x < program_data["grid_width"] and 0 <= grid_y < program_data["grid_height"]:
+                for i, (line, color) in enumerate(lines):
+                    line_points = bresenham_line(line[0][0], line[0][1], line[1][0], line[1][1])
+                    if point in line_points:
+                        return i
+        return -1
+
+def apply_setting_value():
+    """Apply the current input text to the appropriate setting"""
+    global active_setting, input_text, program_data
     
-    for i, (line, color) in enumerate(lines):
-        line_points = bresenham_line(line[0][0], line[0][1], line[1][0], line[1][1])
-        if point in line_points:
-            return i
-    return -1
+    if not input_text:  # If empty, don't update
+        return
+        
+    try:
+        value = int(input_text)
+        
+        if active_setting == SETTING_CELL_SIZE:
+            # Restrict to valid range
+            value = max(10, min(value, 100))
+            program_data["grid_cell_size"] = value
+        elif active_setting == SETTING_GRID_WIDTH:
+            # Restrict to valid range
+            value = max(5, min(value, 200))
+            program_data["grid_width"] = value
+        elif active_setting == SETTING_GRID_HEIGHT:
+            # Restrict to valid range
+            value = max(5, min(value, 200))
+            program_data["grid_height"] = value
+    except ValueError:
+        # If the input isn't a valid number, don't update
+        pass
+    
+    # Reset input state
+    input_text = ""
+    active_setting = SETTING_NONE
+
+def convert_mouse_to_grid(mouse_pos):
+    """Convert mouse coordinates to grid coordinates, accounting for toolbar offset"""
+    # Adjust for toolbar offset
+    adjusted_y = mouse_pos[1] - TOOLBAR_HEIGHT
+    
+    # Only convert if mouse is in the grid area
+    if adjusted_y >= 0:
+        grid_x = math.floor(mouse_pos[0] / grid.cell_size)
+        grid_y = math.floor(adjusted_y / grid.cell_size)
+        
+        # Check if within grid bounds
+        if 0 <= grid_x < program_data["grid_width"] and 0 <= grid_y < program_data["grid_height"]:
+            return grid_x, grid_y
+    
+    return None  # Return None if not in grid area
 
 def main():
-    global current_state, grid, first_point, preview_point, last_preview_line, active_color, lines, active_line_index, current_mode
+    global current_state, grid, first_point, preview_point, last_preview_line, active_color, lines, active_line_index, current_mode, active_setting, input_text
     
     running = True
     start_button = None
@@ -559,7 +655,7 @@ def main():
             
         # Start Screen
         if current_state == STATE_START_SCREEN and needs_redraw:
-            start_button, load_button = draw_start_screen()
+            start_button, load_button, cell_size_rect, grid_width_rect, grid_height_rect = draw_start_screen()
             needs_redraw = False
             
         # Drawing Screen - draw the toolbar
@@ -579,14 +675,17 @@ def main():
                 for point in line_points:
                     x, y = point
                     if 0 <= x < program_data["grid_width"] and 0 <= y < program_data["grid_height"]:
-                        cell_rect = pygame.Rect(x * grid.cell_size, y * grid.cell_size, 
+                        cell_rect = pygame.Rect(x * grid.cell_size, y * grid.cell_size + TOOLBAR_HEIGHT, 
                                               grid.cell_size, grid.cell_size)
                         screen_manager.draw_rect(line_color, cell_rect)
             
             # Preview line if we have a first point and mouse is over the grid
             if current_state == STATE_LINE1 and first_point:
-                grid_x, grid_y = grid.convert_world_coordinates_to_grid_coordinates(mouse_pos[0], mouse_pos[1])
-                if 0 <= grid_x < program_data["grid_width"] and 0 <= grid_y < program_data["grid_height"]:
+                # Get grid coordinates using our new helper function
+                grid_coords = convert_mouse_to_grid(mouse_pos)
+                
+                if grid_coords:
+                    grid_x, grid_y = grid_coords
                     current_preview = (grid_x, grid_y)
                     if current_preview != preview_point:
                         preview_point = current_preview
@@ -595,12 +694,12 @@ def main():
             # Redraw grid lines to see cell boundaries clearly
             for x in range(0, program_data["grid_width"] + 1):
                 screen_manager.draw_line(COLOR_GREY, 
-                                        (x * grid.cell_size, 0), 
-                                        (x * grid.cell_size, program_data["grid_height"] * grid.cell_size))
+                                        (x * grid.cell_size, TOOLBAR_HEIGHT), 
+                                        (x * grid.cell_size, program_data["grid_height"] * grid.cell_size + TOOLBAR_HEIGHT))
             for y in range(0, program_data["grid_height"] + 1):
                 screen_manager.draw_line(COLOR_GREY, 
-                                        (0, y * grid.cell_size), 
-                                        (program_data["grid_width"] * grid.cell_size, y * grid.cell_size))
+                                        (0, y * grid.cell_size + TOOLBAR_HEIGHT), 
+                                        (program_data["grid_width"] * grid.cell_size, y * grid.cell_size + TOOLBAR_HEIGHT))
             
             # Draw toolbar
             color_rect, pen_rect, eraser_rect, save_rect, export_rect = draw_toolbar()
@@ -619,12 +718,32 @@ def main():
             elif event.type == MOUSEBUTTONDOWN:
                 if current_state == STATE_START_SCREEN:
                     if start_button and start_button.collidepoint(event.pos):
+                        # Before starting, apply any pending changes
+                        if active_setting != SETTING_NONE:
+                            apply_setting_value()
                         current_state = STATE_DRAWING
                         init_grid()
                     elif load_button and load_button.collidepoint(event.pos):
                         if load_drawing():
                             current_state = STATE_DRAWING
-                    
+                    elif cell_size_rect.collidepoint(event.pos):
+                        active_setting = SETTING_CELL_SIZE
+                        input_text = str(program_data["grid_cell_size"])
+                        needs_redraw = True
+                    elif grid_width_rect.collidepoint(event.pos):
+                        active_setting = SETTING_GRID_WIDTH
+                        input_text = str(program_data["grid_width"])
+                        needs_redraw = True
+                    elif grid_height_rect.collidepoint(event.pos):
+                        active_setting = SETTING_GRID_HEIGHT
+                        input_text = str(program_data["grid_height"])
+                        needs_redraw = True
+                    else:
+                        # If clicked outside input fields, apply any pending changes
+                        if active_setting != SETTING_NONE:
+                            apply_setting_value()
+                            active_setting = SETTING_NONE
+                            needs_redraw = True
                 elif current_state == STATE_DRAWING:
                     # Check toolbar buttons
                     color_rect, pen_rect, eraser_rect, save_rect, export_rect = draw_toolbar()
@@ -671,27 +790,35 @@ def main():
                                 # In pen mode, select the line
                                 active_line_index = line_index
                         elif current_mode == MODE_PEN:
-                            # Only start drawing a new line in pen mode
-                            grid_x, grid_y = grid.convert_world_coordinates_to_grid_coordinates(event.pos[0], event.pos[1])
-                            if 0 <= grid_x < program_data["grid_width"] and 0 <= grid_y < program_data["grid_height"]:
+                            # Use our consistent coordinate conversion function
+                            grid_coords = convert_mouse_to_grid(event.pos)
+                            if grid_coords:
+                                grid_x, grid_y = grid_coords
                                 first_point = (grid_x, grid_y)
                                 preview_point = (grid_x, grid_y)
                                 current_state = STATE_LINE1
                                 active_line_index = -1  # Deselect any selected line
                 
                 elif current_state == STATE_LINE1:
-                    grid_x, grid_y = grid.convert_world_coordinates_to_grid_coordinates(event.pos[0], event.pos[1])
-                    if 0 <= grid_x < program_data["grid_width"] and 0 <= grid_y < program_data["grid_height"]:
-                        # Clean up the preview line
-                        clean_preview_line()
+                    # Adjust mouse position to account for toolbar offset
+                    adjusted_y = event.pos[1] - TOOLBAR_HEIGHT
+                    
+                    # Only proceed if mouse is in grid area
+                    if adjusted_y >= 0:
+                        grid_x = math.floor(event.pos[0]/grid.cell_size)
+                        grid_y = math.floor(adjusted_y/grid.cell_size)
                         
-                        # Complete the line
-                        second_point = (grid_x, grid_y)
-                        lines.append([(first_point, second_point), active_color])
-                        first_point = None
-                        preview_point = None
-                        current_state = STATE_DRAWING
-                        needs_redraw = True  # Force redraw to show the new line properly
+                        if 0 <= grid_x < program_data["grid_width"] and 0 <= grid_y < program_data["grid_height"]:
+                            # Clean up the preview line
+                            clean_preview_line()
+                            
+                            # Complete the line
+                            second_point = (grid_x, grid_y)
+                            lines.append([(first_point, second_point), active_color])
+                            first_point = None
+                            preview_point = None
+                            current_state = STATE_DRAWING
+                            needs_redraw = True  # Force redraw to show the new line properly
                 
                 elif current_state == STATE_COLOR_SELECT:
                     color_rects, cancel_button = draw_color_selector()
@@ -709,8 +836,10 @@ def main():
             
             elif event.type == MOUSEMOTION:
                 if current_state == STATE_LINE1:
-                    grid_x, grid_y = grid.convert_world_coordinates_to_grid_coordinates(event.pos[0], event.pos[1])
-                    if 0 <= grid_x < program_data["grid_width"] and 0 <= grid_y < program_data["grid_height"]:
+                    # Use our consistent coordinate conversion function
+                    grid_coords = convert_mouse_to_grid(event.pos)
+                    if grid_coords:
+                        grid_x, grid_y = grid_coords
                         # Only update if we moved to a different grid cell
                         current_preview = (grid_x, grid_y)
                         if current_preview != preview_point:
@@ -720,14 +849,36 @@ def main():
             # Handle ESC key to cancel line drawing and other keyboard inputs
             elif event.type == KEYDOWN:
                 if current_state == STATE_START_SCREEN:
-                    if event.key == K_UP:
+                    # Handle direct keyboard input for settings
+                    if active_setting != SETTING_NONE:
+                        if event.key == K_ESCAPE:
+                            # Cancel editing the setting
+                            active_setting = SETTING_NONE
+                            input_text = ""
+                            needs_redraw = True
+                        elif event.key == K_RETURN or event.key == K_KP_ENTER:
+                            # Confirm the setting
+                            apply_setting_value()
+                            needs_redraw = True
+                        elif event.key == K_BACKSPACE:
+                            # Remove last character
+                            input_text = input_text[:-1]
+                            needs_redraw = True
+                        elif event.unicode.isdigit() and len(input_text) < 3:
+                            # Add digit to input text if it's not too long
+                            input_text += event.unicode
+                            needs_redraw = True
+                    # Continue with default navigation keys
+                    elif event.key == K_UP:
                         program_data["grid_cell_size"] += 10
                         if program_data["grid_cell_size"] > 100:
                             program_data["grid_cell_size"] = 100
+                        needs_redraw = True
                     elif event.key == K_DOWN:
                         program_data["grid_cell_size"] -= 10
                         if program_data["grid_cell_size"] < 10:
                             program_data["grid_cell_size"] = 10
+                        needs_redraw = True
                     elif event.key == K_LEFT:
                         if pygame.key.get_mods() & KMOD_SHIFT:
                             program_data["grid_height"] -= 1
@@ -737,6 +888,7 @@ def main():
                             program_data["grid_width"] -= 1
                             if program_data["grid_width"] < 5:
                                 program_data["grid_width"] = 5
+                        needs_redraw = True
                     elif event.key == K_RIGHT:
                         if pygame.key.get_mods() & KMOD_SHIFT:
                             program_data["grid_height"] += 1
@@ -746,8 +898,9 @@ def main():
                             program_data["grid_width"] += 1
                             if program_data["grid_width"] > 20:
                                 program_data["grid_width"] = 20
+                        needs_redraw = True
                     
-                    # Add ESC key handling when in the middle of drawing a line
+                # Add ESC key handling when in the middle of drawing a line
                 elif current_state == STATE_LINE1 and event.key == K_ESCAPE:
                     # Cancel the current line drawing operation
                     clean_preview_line()
