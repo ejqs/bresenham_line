@@ -3,8 +3,6 @@ on:
   push:
     tags:
       - 'v*' # Run workflow on version tags, e.g. v1.0.0
-    branches:
-      - main # Also run on main branch pushes for testing
 
 jobs:
   build:
@@ -92,7 +90,7 @@ jobs:
           cd dist
           zip -r BresenhamLine-Linux.zip BresenhamLine
       
-      # Keep artifacts for debugging and quick access
+      # Still keep artifacts for debugging
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -106,8 +104,5 @@ jobs:
         with:
           files: |
             dist/BresenhamLine-*.zip
-          name: Bresenham Line ${{ github.ref_name }}
-          draft: false
-          prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
