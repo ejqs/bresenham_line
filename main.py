@@ -23,7 +23,12 @@ class Screen:
     def initialize(self):
         """Initialize the pygame display"""
         pygame.init()
-        self.display = pygame.display.set_mode((640, 480))
+        # Get the display info to decide on window size
+        info = pygame.display.Info()
+        # Set window to 80% of screen size for better visibility
+        self.width = min(1280, int(info.current_w * 0.8))
+        self.height = min(800, int(info.current_h * 0.8))
+        self.display = pygame.display.set_mode((self.width, self.height))
         pygame.display.set_caption("Bresenham Line Drawing Tool")
         self.clock = pygame.time.Clock()
         self.dirty_rects = []
@@ -190,7 +195,6 @@ def draw_start_screen():
     else:
         text_to_show = str(program_data["grid_height"])
     render_text(text_to_show, font, COLOR_WHITE, screen, 360, 210)
-    render_text("Grid Height", font, COLOR_WHITE, screen, 200, 210)
     
     # Default values
     render_text("Default", font, COLOR_WHITE, screen, 420, 120)
@@ -214,7 +218,8 @@ def draw_toolbar():
     """Draw the toolbar with color selector and options"""
     global current_mode
     
-    toolbar_rect = pygame.Rect(0, 0, 640, TOOLBAR_HEIGHT)
+    # Make toolbar span entire window width
+    toolbar_rect = pygame.Rect(0, 0, screen_manager.width, TOOLBAR_HEIGHT)
     screen_manager.draw_rect((50, 50, 50), toolbar_rect)
     
     # Color picker
@@ -254,6 +259,10 @@ def draw_toolbar():
     # Mode indicator text
     mode_text = "Mode: " + ("Drawing" if current_mode == MODE_PEN else "Erasing")
     render_text(mode_text, font, COLOR_WHITE, screen, 240, 10)
+    
+    # Cell size indicator (right-aligned)
+    cell_size_text = f"Cell Size: {program_data['grid_cell_size']}px"
+    render_text(cell_size_text, font, COLOR_WHITE, screen, screen_manager.width - 160, 10)
     
     return color_rect, pen_rect, eraser_rect, save_rect, export_rect
 
@@ -471,8 +480,21 @@ def export_as_png():
 def init_grid():
     """Initialize the grid with the current settings"""
     global grid
+    
+    # Adjust grid dimensions to fit the screen if needed
+    max_width = (screen_manager.width) // program_data["grid_cell_size"]
+    max_height = (screen_manager.height - TOOLBAR_HEIGHT) // program_data["grid_cell_size"]
+    
+    # Enforce limits on grid dimensions to fit screen
+    if program_data["grid_width"] > max_width:
+        program_data["grid_width"] = max_width
+    
+    if program_data["grid_height"] > max_height:
+        program_data["grid_height"] = max_height
+    
     grid = Grid(screen)
     grid.cell_size = program_data["grid_cell_size"]
+    
     # Create empty 2D array based on grid dimensions
     grid.cells = []
     for x in range(program_data["grid_width"]):
@@ -480,8 +502,10 @@ def init_grid():
         for y in range(program_data["grid_height"]):
             grid.cells[x].append(0)
     
-    # Replace the original draw_grid method with a custom one that respects our dimensions
-    # and positions the grid below the toolbar
+    # Always use thin lines for grid
+    line_thickness = 1
+        
+    # Replace the original draw_grid method with a custom one
     def custom_draw_grid():
         # Fill the background
         screen.fill(COLOR_BLACK)
@@ -491,7 +515,7 @@ def init_grid():
             for y in range(0, program_data["grid_height"]):
                 pygame.draw.rect(screen, COLOR_WHITE, 
                     pygame.Rect(x*grid.cell_size, y*grid.cell_size + TOOLBAR_HEIGHT, 
-                              grid.cell_size, grid.cell_size), 1)
+                              grid.cell_size, grid.cell_size), line_thickness)
         
         # Mark the entire grid area as dirty
         grid_area = pygame.Rect(0, TOOLBAR_HEIGHT, 
@@ -692,14 +716,24 @@ def main():
                         draw_preview_line(first_point, preview_point)
             
             # Redraw grid lines to see cell boundaries clearly
+            # Determine line thickness based on cell size
+            if grid.cell_size < 20:
+                line_thickness = 1
+            elif grid.cell_size < 40:
+                line_thickness = 1
+            else:
+                line_thickness = 2
+                
             for x in range(0, program_data["grid_width"] + 1):
                 screen_manager.draw_line(COLOR_GREY, 
                                         (x * grid.cell_size, TOOLBAR_HEIGHT), 
-                                        (x * grid.cell_size, program_data["grid_height"] * grid.cell_size + TOOLBAR_HEIGHT))
+                                        (x * grid.cell_size, program_data["grid_height"] * grid.cell_size + TOOLBAR_HEIGHT),
+                                        line_thickness)
             for y in range(0, program_data["grid_height"] + 1):
                 screen_manager.draw_line(COLOR_GREY, 
                                         (0, y * grid.cell_size + TOOLBAR_HEIGHT), 
-                                        (program_data["grid_width"] * grid.cell_size, y * grid.cell_size + TOOLBAR_HEIGHT))
+                                        (program_data["grid_width"] * grid.cell_size, y * grid.cell_size + TOOLBAR_HEIGHT),
+                                        line_thickness)
             
             # Draw toolbar
             color_rect, pen_rect, eraser_rect, save_rect, export_rect = draw_toolbar()
