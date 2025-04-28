@@ -1,75 +1,76 @@
 name: Build Multi-Platform Executables
-run-name: Building for Windows, macOS, and Linux
-on: [push]
+on:
+  push:
+
 jobs:
   build:
-    strategy:
-      matrix:
-        os: [windows-latest, ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ['windows-latest', 'ubuntu-latest', 'macos-latest']
+
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v3
-        with:
-          clean: true
-          lfs: false
-          
-      - name: Set up Python
+      
+      - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
-          
-      - name: Create spec file
+      
+      - name: Install dependencies
+        run: pip install -r requirements.txt pyinstaller
+      
+      - name: Install additional Linux dependencies
+        if: runner.os == 'Linux'
         run: |
-          echo "# -*- mode: python ; coding: utf-8 -*-
-          
+          sudo apt-get update
+          sudo apt-get install -y libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev
+      
+      - name: Create PyInstaller spec file
+        run: |
+          echo "# -*- mode: python -*-
           block_cipher = None
-          
           a = Analysis(['main.py'],
-                       pathex=['.'],
-                       binaries=[],
-                       datas=[],
-                       hiddenimports=[],
-                       hookspath=[],
-                       hooksconfig={},
-                       runtime_hooks=[],
-                       excludes=[],
-                       win_no_prefer_redirects=False,
-                       win_private_assemblies=False,
-                       cipher=block_cipher,
-                       noarchive=False)
-                       
+                      pathex=['.'],
+                      binaries=[],
+                      datas=[],
+                      hiddenimports=['pygame'],
+                      hookspath=[],
+                      runtime_hooks=[],
+                      excludes=[],
+                      win_no_prefer_redirects=False,
+                      win_private_assemblies=False,
+                      cipher=block_cipher,
+                      noarchive=False)
           pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
-          
           exe = EXE(pyz,
-                    a.scripts,
-                    a.binaries,
-                    a.zipfiles,
-                    a.datas,
-                    [],
-                    name='Bresenham Line',
-                    debug=False,
-                    bootloader_ignore_signals=False,
-                    strip=False,
-                    upx=True,
-                    upx_exclude=[],
-                    runtime_tmpdir=None,
-                    console=False,
-                    disable_windowed_traceback=False,
-                    argv_emulation=False,
-                    target_arch=None,
-                    codesign_identity=None,
-                    entitlements_file=None)
+                   a.scripts,
+                   a.binaries,
+                   a.zipfiles,
+                   a.datas,
+                   [],
+                   name='BresenhamLine',
+                   debug=False,
+                   bootloader_ignore_signals=False,
+                   strip=False,
+                   upx=True,
+                   upx_exclude=[],
+                   runtime_tmpdir=None,
+                   console=False,
+                   disable_windowed_traceback=False,
+                   argv_emulation=False,
+                   target_arch=None,
+                   codesign_identity=None,
+                   entitlements_file=None)
           " > build.spec
-          
-      - name: Create Executable
-        uses: sayyid5416/pyinstaller@v1.8.0
+      
+      - name: Build with PyInstaller
+        run: pyinstaller build.spec
+      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
         with:
-          python_ver: '3.10'
-          pyinstaller_ver: '==5.13.2'
-          spec: 'build.spec'
-          requirements: 'requirements.txt'
-          upload_exe_with_name: 'Bresenham Line - ${{ matrix.os }}'
-          options: --onefile, --name "Bresenham Line", --windowed
-          spec_options: ''
-          compression_level: 6
+          name: BresenhamLine-${{ runner.os }}
+          path: dist/BresenhamLine*
