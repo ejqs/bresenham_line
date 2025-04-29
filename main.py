@@ -1,3 +1,7 @@
+# REN JOSEPH E. AYANGCO
+# EARLAN JOSH Q. SABILLANO
+# JEA KATRINA G. JALANDONI
+
 import pygame
 from pygame.locals import * 
 import json
@@ -102,6 +106,7 @@ MODE_ERASE = "erase"  # Erasing lines
 # UI Constants
 TOOLBAR_HEIGHT = 50  # Height of the toolbar
 
+# Program states and variables
 current_state = STATE_START_SCREEN
 current_mode = MODE_PEN  # Default mode is pen
 program_data = {
@@ -109,6 +114,11 @@ program_data = {
     "grid_width": 10,
     "grid_height": 10
 }
+
+# Feedback message variables
+feedback_message = ""
+feedback_color = COLOR_WHITE
+feedback_timer = 0  # Timer for auto-hiding feedback
 
 # Font setup
 font = pygame.font.SysFont("Arial", 18)
@@ -144,79 +154,129 @@ def render_text(text, font, color, surface, x, y):
     screen_manager.mark_dirty(text_rect)  # Mark the text rect as dirty
 
 def draw_start_screen():
-    """Draw the configuration screen"""
+    """Draw the configuration screen, centered, with animated rainbow names."""
     global active_setting, input_text
-    
+
+    # Comic Sans MS for the rainbow names
+    cs_font = pygame.font.SysFont("Comic Sans MS", 18)
+
     screen_manager.fill(COLOR_BLACK)
-    
+
+    # Center anchors
+    cx = screen_manager.width // 2
+    cy = screen_manager.height // 2
+
     # Title
-    render_text("SIMPLELINE", title_font, COLOR_WHITE, screen, 150, 50)
-    
-    # New Drawing Section
-    render_text("New Drawing", font, COLOR_WHITE, screen, 200, 120)
-    
-    # Settings boxes with highlighting for active field
-    cell_size_rect = pygame.Rect(350, 150, 50, 20)
-    cell_border_width = 2 if active_setting == SETTING_CELL_SIZE else 1
-    cell_border_color = COLOR_GREEN if active_setting == SETTING_CELL_SIZE else COLOR_WHITE
-    pygame.draw.rect(screen, cell_border_color, cell_size_rect, cell_border_width)
-    screen_manager.mark_dirty(pygame.Rect(350, 150, 50, 20))
-    
-    # Show input text if being edited, otherwise show current value
+    title = "SIMPLELINE"
+    tw, th = title_font.size(title)
+    ty = cy - 150
+    render_text(title, title_font, COLOR_WHITE, screen, cx - tw // 2, ty)
+
+    # Rainbow names animation under the title
+    NAMES = [
+        "REN JOSEPH E. AYANGCO",
+        "EARLAN JOSH Q. SABILLANO",
+        "JEA KATRINA G. JALANDONI"
+    ]
+    RAINBOW = [
+        (255, 0, 0), (255, 127, 0), (255, 255, 0),
+        (0, 255, 0), (0, 0, 255), (75, 0, 130), (148, 0, 211)
+    ]
+    # Simple animation offset
+    offset = (pygame.time.get_ticks() // 200) % len(RAINBOW)
+
+    for idx, name in enumerate(NAMES):
+        y_name = ty + 30 + idx * 25
+        x_pos = cx - cs_font.size(name)[0] // 2
+        for i, ch in enumerate(name):
+            color = RAINBOW[(i + offset) % len(RAINBOW)]
+            render_text(ch, cs_font, color, screen, x_pos, y_name)
+            x_pos += cs_font.size(ch)[0]
+
+    # "New Drawing" label - placed below the last name with extra space
+    nd = "New Drawing. Click, type, and [press enter] to edit and confirm changes."
+    nw, nh = font.size(nd)
+    gap_after_names = 40
+    ly = ty + 30 + len(NAMES) * 25 + gap_after_names
+    render_text(nd, font, COLOR_WHITE, screen, cx - nw // 2, ly)
+
+    # Rows setup
+    row0 = ly + 40
+    label_x = cx - 150
+    input_x = cx - 50
+    limits_x = cx + 50
+    row_h = 30
+    textbox_width = 80
+
+    # Cell Size (10-100)
+    y = row0
+    render_text("Cell Size", font, COLOR_WHITE, screen, label_x, y)
+    cell_size_rect = pygame.Rect(input_x, y, textbox_width, 20)
+    bw = 2 if active_setting == SETTING_CELL_SIZE else 1
+    bc = COLOR_GREEN if active_setting == SETTING_CELL_SIZE else COLOR_WHITE
+    pygame.draw.rect(screen, bc, cell_size_rect, bw)
+    screen_manager.mark_dirty(cell_size_rect)
+    # Show the full input_text immediately, even when it reaches 3 chars
     if active_setting == SETTING_CELL_SIZE:
-        text_to_show = input_text + "|" if len(input_text) < 3 else input_text  # Add cursor
+        display_text = input_text + "|"
     else:
-        text_to_show = str(program_data["grid_cell_size"])
-    render_text(text_to_show, font, COLOR_WHITE, screen, 360, 150)
-    render_text("Cell Size", font, COLOR_WHITE, screen, 200, 150)
-    render_text("(Click to edit)", font, COLOR_WHITE, screen, 200, 240)
-    
-    grid_width_rect = pygame.Rect(350, 180, 50, 20)
-    width_border_width = 2 if active_setting == SETTING_GRID_WIDTH else 1
-    width_border_color = COLOR_GREEN if active_setting == SETTING_GRID_WIDTH else COLOR_WHITE
-    pygame.draw.rect(screen, width_border_color, grid_width_rect, width_border_width)
-    screen_manager.mark_dirty(pygame.Rect(350, 180, 50, 20))
-    
+        display_text = str(program_data["grid_cell_size"])
+    render_text(display_text, font, COLOR_WHITE, screen, input_x + 5, y)
+    render_text("(10-100)", font, COLOR_WHITE, screen, limits_x, y)
+
+    # Grid Width (5-200)
+    y += row_h
+    render_text("Grid Width", font, COLOR_WHITE, screen, label_x, y)
+    grid_width_rect = pygame.Rect(input_x, y, textbox_width, 20)
+    bw = 2 if active_setting == SETTING_GRID_WIDTH else 1
+    bc = COLOR_GREEN if active_setting == SETTING_GRID_WIDTH else COLOR_WHITE
+    pygame.draw.rect(screen, bc, grid_width_rect, bw)
+    screen_manager.mark_dirty(grid_width_rect)
     if active_setting == SETTING_GRID_WIDTH:
-        text_to_show = input_text + "|" if len(input_text) < 3 else input_text
+        display_text = input_text + "|"
     else:
-        text_to_show = str(program_data["grid_width"])
-    render_text(text_to_show, font, COLOR_WHITE, screen, 360, 180)
-    render_text("Grid Width", font, COLOR_WHITE, screen, 200, 180)
-    
-    grid_height_rect = pygame.Rect(350, 210, 50, 20)
-    height_border_width = 2 if active_setting == SETTING_GRID_HEIGHT else 1
-    height_border_color = COLOR_GREEN if active_setting == SETTING_GRID_HEIGHT else COLOR_WHITE
-    pygame.draw.rect(screen, height_border_color, grid_height_rect, height_border_width)
-    screen_manager.mark_dirty(pygame.Rect(350, 210, 50, 20))
-    
+        display_text = str(program_data["grid_width"])
+    render_text(display_text, font, COLOR_WHITE, screen, input_x + 5, y)
+    render_text("(5-200)", font, COLOR_WHITE, screen, limits_x, y)
+
+    # Grid Height (5-200)
+    y += row_h
+    render_text("Grid Height", font, COLOR_WHITE, screen, label_x, y)
+    grid_height_rect = pygame.Rect(input_x, y, textbox_width, 20)
+    bw = 2 if active_setting == SETTING_GRID_HEIGHT else 1
+    bc = COLOR_GREEN if active_setting == SETTING_GRID_HEIGHT else COLOR_WHITE
+    pygame.draw.rect(screen, bc, grid_height_rect, bw)
+    screen_manager.mark_dirty(grid_height_rect)
     if active_setting == SETTING_GRID_HEIGHT:
-        text_to_show = input_text + "|" if len(input_text) < 3 else input_text
+        display_text = input_text + "|"
     else:
-        text_to_show = str(program_data["grid_height"])
-    render_text(text_to_show, font, COLOR_WHITE, screen, 360, 210)
-    
-    # Default values
-    render_text("Default", font, COLOR_WHITE, screen, 420, 120)
-    render_text("50", font, COLOR_WHITE, screen, 440, 150)
-    render_text("10", font, COLOR_WHITE, screen, 440, 180)
-    render_text("10", font, COLOR_WHITE, screen, 440, 210)
-    
-    # Start button
-    start_button = pygame.Rect(250, 260, 140, 40)
+        display_text = str(program_data["grid_height"])
+    render_text(display_text, font, COLOR_WHITE, screen, input_x + 5, y)
+    render_text("(5-200)", font, COLOR_WHITE, screen, limits_x, y)
+
+    # Start & Load buttons
+    bw, bh = 140, 40
+    sy = y + 60
+    start_button = pygame.Rect(cx - bw // 2, sy, bw, bh)
     screen_manager.draw_rect(COLOR_GREEN, start_button)
-    render_text("CREATE GRID", font, COLOR_BLACK, screen, 270, 270)
-    
-    # Load button
-    load_button = pygame.Rect(250, 310, 140, 40)
+    sw, _ = font.size("CREATE GRID")
+    render_text("CREATE GRID", font, COLOR_BLACK, screen,
+                start_button.x + (bw - sw) // 2,
+                start_button.y + (bh - font.get_height()) // 2)
+
+    ly2 = sy + bh + 10
+    load_button = pygame.Rect(cx - bw // 2, ly2, bw, bh)
     screen_manager.draw_rect(COLOR_BLUE, load_button)
-    render_text("LOAD DRAWING", font, COLOR_BLACK, screen, 260, 320)
-    
+    lw, _ = font.size("LOAD DRAWING")
+    render_text("LOAD DRAWING", font, COLOR_BLACK, screen,
+                load_button.x + (bw - lw) // 2,
+                load_button.y + (bh - font.get_height()) // 2)
+
     return start_button, load_button, cell_size_rect, grid_width_rect, grid_height_rect
 
 def draw_toolbar():
     """Draw the toolbar with color selector and options"""
-    global current_mode
+    global current_mode, feedback_message, feedback_color, feedback_timer
     
     # Make toolbar span entire window width
     toolbar_rect = pygame.Rect(0, 0, screen_manager.width, TOOLBAR_HEIGHT)
@@ -256,13 +316,20 @@ def draw_toolbar():
     screen_manager.draw_rect((80, 80, 80), export_rect)
     render_text("Export", font, COLOR_WHITE, screen, 175, 10)
     
-    # Mode indicator text
+    # Feedback message (displayed immediately after Export button)
+    if feedback_message and pygame.time.get_ticks() < feedback_timer:
+        render_text(feedback_message, font, feedback_color, screen, 240, 15)
+    else:
+        # Clear feedback message when timer expires
+        feedback_message = ""
+    
+    # Mode indicator text (right-aligned)
     mode_text = "Mode: " + ("Drawing" if current_mode == MODE_PEN else "Erasing")
-    render_text(mode_text, font, COLOR_WHITE, screen, 240, 10)
+    render_text(mode_text, font, COLOR_WHITE, screen, screen_manager.width - 300, 15)
     
     # Cell size indicator (right-aligned)
     cell_size_text = f"Cell Size: {program_data['grid_cell_size']}px"
-    render_text(cell_size_text, font, COLOR_WHITE, screen, screen_manager.width - 160, 10)
+    render_text(cell_size_text, font, COLOR_WHITE, screen, screen_manager.width - 160, 15)
     
     return color_rect, pen_rect, eraser_rect, save_rect, export_rect
 
@@ -306,48 +373,18 @@ def save_drawing():
             "color": color
         })
     
-    # Create save dialog
-    dialog_rect = pygame.Rect(120, 120, 400, 200)
-    screen_manager.draw_rect((60, 60, 60), dialog_rect)
-    screen_manager.draw_rect(COLOR_WHITE, dialog_rect, 2)
-    
-    render_text("Save Drawing", title_font, COLOR_WHITE, screen, 240, 140)
-    render_text("File saved as: drawing.json", font, COLOR_WHITE, screen, 150, 180)
-    
-    # Save button
-    save_button = pygame.Rect(220, 240, 80, 30)
-    screen_manager.draw_rect(COLOR_GREEN, save_button)
-    render_text("OK", font, COLOR_BLACK, screen, 250, 245)
-    
-    screen_manager.update()
-    
     # Save to file
     with open('drawing.json', 'w') as f:
         json.dump(save_data, f)
     
-    # Wait for user to dismiss dialog
-    waiting = True
-    while waiting:
-        for event in pygame.event.get():
-            if event.type == QUIT:
-                return False
-            elif event.type == MOUSEBUTTONDOWN:
-                if save_button.collidepoint(event.pos):
-                    waiting = False
+    # Show feedback in the toolbar instead of a dialog
+    show_feedback("File saved as: drawing.json", COLOR_GREEN, 3000)
     
     return True
 
 def load_drawing():
     """Load a drawing from a JSON file"""
     global program_data, lines, grid
-    
-    # Create load dialog
-    dialog_rect = pygame.Rect(120, 120, 400, 200)
-    screen_manager.draw_rect((60, 60, 60), dialog_rect)
-    screen_manager.draw_rect(COLOR_WHITE, dialog_rect, 2)
-    
-    render_text("Load Drawing", title_font, COLOR_WHITE, screen, 240, 140)
-    render_text("Loading from: drawing.json", font, COLOR_WHITE, screen, 150, 180)
     
     try:
         with open('drawing.json', 'r') as f:
@@ -393,46 +430,17 @@ def load_drawing():
         # Initialize the grid with the loaded settings
         init_grid()
         
-        result_message = "Drawing loaded successfully!"
+        # Show feedback in the toolbar instead of a dialog
+        show_feedback("Drawing loaded successfully!", COLOR_GREEN, 3000)
+        return True
+        
     except (FileNotFoundError, json.JSONDecodeError, KeyError) as e:
-        result_message = f"Error loading file: {str(e)}"
-    
-    render_text(result_message, font, COLOR_WHITE, screen, 150, 200)
-    
-    # OK button
-    ok_button = pygame.Rect(220, 240, 80, 30)
-    screen_manager.draw_rect(COLOR_GREEN, ok_button)
-    render_text("OK", font, COLOR_BLACK, screen, 250, 245)
-    
-    screen_manager.update()
-    
-    # Wait for user to dismiss dialog
-    waiting = True
-    while waiting:
-        for event in pygame.event.get():
-            if event.type == QUIT:
-                return False
-            elif event.type == MOUSEBUTTONDOWN:
-                if ok_button.collidepoint(event.pos):
-                    waiting = False
-    
-    return True
+        # Show error feedback in the toolbar
+        show_feedback(f"Error loading file: {str(e)}", COLOR_RED, 3000)
+        return False
 
 def export_as_png():
     """Export the drawing as PNG"""
-    # Create export dialog
-    dialog_rect = pygame.Rect(120, 120, 400, 200)
-    screen_manager.draw_rect((60, 60, 60), dialog_rect)
-    screen_manager.draw_rect(COLOR_WHITE, dialog_rect, 2)
-    
-    render_text("Export as PNG", title_font, COLOR_WHITE, screen, 240, 140)
-    render_text("File exported as: drawing.png", font, COLOR_WHITE, screen, 150, 180)
-    
-    # Save button
-    save_button = pygame.Rect(220, 240, 80, 30)
-    screen_manager.draw_rect(COLOR_GREEN, save_button)
-    render_text("OK", font, COLOR_BLACK, screen, 250, 245)
-    
     # Save the screen region containing just the grid
     grid_surface = pygame.Surface((
         program_data["grid_width"] * program_data["grid_cell_size"],
@@ -461,19 +469,11 @@ def export_as_png():
                         (0, y * program_data["grid_cell_size"]), 
                         (program_data["grid_width"] * program_data["grid_cell_size"], y * program_data["grid_cell_size"]))
     
+    # Save the image
     pygame.image.save(grid_surface, "drawing.png")
     
-    screen_manager.update()
-    
-    # Wait for user to dismiss dialog
-    waiting = True
-    while waiting:
-        for event in pygame.event.get():
-            if event.type == QUIT:
-                return False
-            elif event.type == MOUSEBUTTONDOWN:
-                if save_button.collidepoint(event.pos):
-                    waiting = False
+    # Show feedback in the toolbar instead of dialog
+    show_feedback("File exported as: drawing.png", COLOR_GREEN, 3000)
     
     return True
 
@@ -657,6 +657,16 @@ def convert_mouse_to_grid(mouse_pos):
             return grid_x, grid_y
     
     return None  # Return None if not in grid area
+
+def show_feedback(message, color=COLOR_WHITE, duration=3000):
+    """Show a temporary feedback message in the toolbar"""
+    global feedback_message, feedback_color, feedback_timer
+    feedback_message = message
+    feedback_color = color
+    feedback_timer = pygame.time.get_ticks() + duration
+    
+    # Force toolbar redraw
+    draw_toolbar()
 
 def main():
     global current_state, grid, first_point, preview_point, last_preview_line, active_color, lines, active_line_index, current_mode, active_setting, input_text

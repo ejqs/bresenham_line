@@ -1,3 +1,7 @@
+# REN JOSEPH E. AYANGCO
+# EARLAN JOSH Q. SABILLANO
+# JEA KATRINA G. JALANDONI
+
 import pygame
 from pygame.locals import * 
 from colors import * 

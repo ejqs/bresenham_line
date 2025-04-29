@@ -1,3 +1,7 @@
+# REN JOSEPH E. AYANGCO
+# EARLAN JOSH Q. SABILLANO
+# JEA KATRINA G. JALANDONI
+
 # Processes Points and Generates
 class BresenhamPoints:
     def __init__(self):
